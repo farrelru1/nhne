@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from account import NHAccount
 
 # WAJIB DIGANTI SETIAP UPDATE
-LIVE_VER = "1.8.5"
+LIVE_VER = "2.0.4"
 
 PAR = ParamSpec("PAR")
 RET = TypeVar("RET")
