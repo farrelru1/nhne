@@ -80,6 +80,13 @@ def fast_combine(acc: NHAccount):
     print("Fast combine berhasil!")
 
 
+# --- MENU BARU: AUTO SOUL FUSION ---
+def auto_soul_fusion(acc: NHAccount):
+    print(f"{Fore.YELLOW}Menjalankan Auto Soul Fusion untuk Ninja ID 1-53...{Fore.WHITE}")
+    acc.auto_fusion_1_53()
+    print(f"{Fore.GREEN}Proses Auto Soul Fusion selesai!{Fore.WHITE}")
+
+
 def main():
     parsed = parser.parse_args()
     server = int(input("Server: "))
@@ -88,6 +95,8 @@ def main():
     else:
         user = getpass.getpass("Email: ")
     passwd = getpass.getpass("Password: ")
+    
+    # Menu auto soul fusion telah ditambahkan di sini bersama menu lainnya
     menus: dict[str, Callable[[NHAccount], None] | None] = {
         "burn": burn_prompt,
         "snt": snt,
@@ -95,6 +104,7 @@ def main():
         "gacha": gacha,
         "ninjas": ninjas,
         "combine cepat": fast_combine,
+        "auto soul fusion": auto_soul_fusion,  # <-- Ditambahkan di sini
     }
     menus.update({"Keluar": None})
     with NHAccount(
