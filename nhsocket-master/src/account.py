@@ -95,7 +95,6 @@ class NHAccount:
 
     @property
     def all_ninjas(self):
-
         return [
             NinjaModel(
                 target=target,
@@ -236,7 +235,7 @@ class NHAccount:
             raise NinjaNotFoundError("ninja target or source not found")
         src_ninja = self.raw_ninja[source]
         tar_ninja = self.raw_ninja[target]
-        if "qlv" in tar_ninja and tar_ninja["qlv"] >= 10:
+        if "qlv" in tar_ninja and tar_ninja["qlv"] >= 30:
             raise FusionLimitError("Target ninja is already maxed!")
         if not self.safe_ninja(src_ninja, ignore="skill"):
             raise UnsafeNinjaError("ninja source is having equipment")
@@ -274,6 +273,49 @@ class NHAccount:
                 print("fast fusion terminated: ", exc)
                 break
 
+    def auto_fusion_1_53(self):
+        """
+        Memeriksa duplikat untuk ninja ID 1-53 yang tidak berada di lineup.
+        Melakukan fusion menggunakan perulangan secara aman.
+        """
+        print("Kapasitas penuh! Menjalankan auto fusion untuk Ninja ID 1-53...")
+        
+        # Kelompokkan tar_id berdasarkan ninja_id (hanya untuk ID 1-53)
+        # Serta pastikan tar_id tersebut tidak sedang dipakai di lineup
+        ninja_groups = {}
+        for tar_id_int, ninja_id in self.get_all_ninja(with_lineup=False):
+            if 1 <= ninja_id <= 53:
+                if ninja_id not in ninja_groups:
+                    ninja_groups[ninja_id] = []
+                ninja_groups[ninja_id].append(str(tar_id_int))
+        
+        # Lakukan fusion untuk kelompok yang memiliki duplikat (lebih dari 1 tar_id)
+        for ninja_id, tar_ids in ninja_groups.items():
+            if len(tar_ids) < 2:
+                continue
+            
+            # Tentukan target fusion (ambil item pertama)
+            target = tar_ids[0]
+            sources = tar_ids[1:]
+            
+            print(f"Memproses Fusion untuk Ninja ID {ninja_id} (Target TAR_ID: {target})")
+            for source in sources:
+                try:
+                    # Ambil data tar_ninja terbaru sebelum cek limit qlv
+                    tar_ninja = self.get_raw_ninja(target)
+                    if not tar_ninja:
+                        break
+                    if "qlv" in tar_ninja and tar_ninja["qlv"] >= 30:
+                        print(f"Target {target} sudah max qlv (+10). Melewati sisa duplikat.")
+                        break
+                        
+                    # Eksekusi fusion (metode fusion bawaan mengonsumsi silver game)
+                    self.fusion(target, source)
+                    print(f"Berhasil fusion source {source} ke target {target}")
+                except (RunError, FusionLimitError, NinjaNotFoundError, UnsafeNinjaError) as exc:
+                    print(f"Fusion dihentikan untuk ID {ninja_id} karena: {exc}")
+                    break
+
     def gacha(self, types: Literal["basic", "advanced", "special"]):
         type_maps = {
             "basic": 0,
@@ -282,6 +324,18 @@ class NHAccount:
         }
         if types not in type_maps:
             raise ValueError(f"cannot find {types} type")
+            
+        # --- LOGIKA OTOMATIS JIKA AKUN PENUH ---
+        if len(self.ninjas_tar_id) >= MAX_NINJA:
+            self.auto_fusion_1_53()
+            
+            # Cek ulang setelah fusion. Jika masih penuh (karena tidak ada duplikat ID 1-53),
+            # batalkan gacha agar script tidak error/crash karena overlimit server.
+            if len(self.ninjas_tar_id) >= MAX_NINJA:
+                print("Kapasitas masih penuh setelah auto-fusion! Gacha dibatalkan.")
+                return None
+        # --------------------------------------
+
         recv: RECV[GachaResp] = self.socket.gacha(type_maps[types])
         if not recv:
             raise RunError("failed to get ninja!")
